@@ -1,0 +1,61 @@
+Column metadata
+
+litter_expt1.csv, litter_expt2.csv:
+- experiment: first or second experiment
+- Date: date of sample harvest
+- Time: approximate number of months of litter decomposition
+- Months: actual number of months of litter decomposition
+- Ring: Plot ID
+- Plot: Subplot ID
+- Rep: replicate ID for litterbags within subplots and harvests
+- Mesh: mesh size (2mm or 4mm)
+- Trt: CO2 treatment during litter decomposition
+- prevTrt: CO2 treatment during leaf development
+- psyllid: psyllid presence (Psyl) or absence (noPsyl) during leaf development
+- InitialMass.g: mass of litter added to bag before decomposition
+- RemainingMass.g: mass of litter remaining in bag after decomposition
+- propMassRem: proportion of initial mass remaining following decomposition
+- propMassRem.trans: arcsine-square root transformation of proportion of initial mass remaining following decomposition
+
+otu_tax.tsv:
+- OTU: operational taxonomic unit identifier
+- kingdom:species: taxonomic assignment (if NA, no close match to BLAST database)
+- n: number of close BLAST database matches 
+- score: proportion of close BLAST database matches belonging to the assigned taxon (assignment made if one taxon makes up more than 50% of close matches)
+- starts with 'SH': additional metadata from the top match in UNITE
+- identity: proportion of bases matching in alignment between query sequence and top hit
+- coverage: proportion overlap between query sequence and top hit
+- trophicMode:citationSource: FUNGuild assignment (if NA, no match)
+- unite_db_version: UNITE database version used for taxonomic assignments (for tracking versions)
+- date_assigned: date when taxonomic assignments performed (for tracking versions)
+
+otus_chem_expt1.csv, otus_chem_expt2.csv:
+- SampleID: sample ID during litter bag processing 
+- experiment: first or second experiment 
+- Date: date of sample harvest
+- Time: approximate number of months of litter decomposition
+- Months: actual number of months of litter decomposition
+- Stage: litter harvested before (preEffect) or after (postEffect) observation of CO2 effect on decomposition
+- Ring: Plot ID
+- Plot: Subplot ID
+- Rep: replicate ID for litterbags within subplots and harvests
+- Mesh: mesh size (2mm or 4mm)
+- Trt: CO2 treatment during litter decomposition
+- prevTrt: CO2 treatment during leaf development
+- psyllid: psyllid presence (Psyl) or absence (noPsyl) during leaf development
+- C_percent: litter carbon concentration (%)
+- N_percent: litter nitrogen concentration (%)
+- P_ppm: litter carbon concentration (ppm)
+- sequencingCode: sample code used for DNA sequencing submission
+- starts with 'ITSall_': OTU frequencies per sample
+
+soilvars.csv:
+- Date: Measurement date for soil parameter
+- Ring: Plot ID
+- VWC: volumetric water content (proportion)
+-  plot average
+- TDRTemp: soil temperature (deg. C)
+-  plot average
+- experiment: first or second experiment
+- Months: column for matching soil parameter data to litter harvests
+

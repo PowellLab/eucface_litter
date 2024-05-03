@@ -1,0 +1,355 @@
+---
+title: "Tables and Figures for 'Controls on litter decomposition at ambient and elevated CO2 concentrations'"
+output: word_document
+---
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+## load libraries
+library(tidyverse)
+library(ggeffects)
+library(patchwork)
+library(lme4)
+library(car)
+library(emmeans)
+library(vegan)
+library(rioja)
+library(ggforce)
+library(pixiedust)
+library(broom)
+
+
+## load and prep data
+
+# soil parameters
+soil <- read_csv('derivedData/soilvars.csv') %>% 
+  mutate(Ring = as.factor(Ring)) %>% 
+  rename(Time = Months)
+
+# otu annotations
+tax <- read_tsv('derivedData/otu_tax.tsv') %>% 
+  filter(!is.na(phylum))
+
+# expt 1, litter
+litter_e1 <- read_csv('derivedData/litter_expt1.csv') %>% 
+  mutate(across(c(Ring, Plot, Mesh), as.factor),
+         Time.ord = ordered(Time)) %>%
+  left_join(soil %>% 
+              group_by(experiment, Time, Ring) %>% 
+              summarise(VWC = mean(VWC, na.rm=TRUE), 
+                        TDRTemp = mean(TDRTemp, na.rm=TRUE)))
+
+# expt 1, chemistry and otus
+otus_e1 <- read_csv('derivedData/otus_chem_expt1.csv')
+
+# expt 2, litter
+litter_e2 <- read_csv('derivedData/litter_expt2.csv') %>% 
+  mutate(across(c(Ring, Plot, Trt, prevTrt, psyllid), as.factor), 
+         Time.ord = ordered(Time)) %>% 
+  left_join(soil %>% 
+              group_by(experiment, Time, Ring) %>% 
+              summarise(VWC = mean(VWC, na.rm=TRUE), 
+                        TDRTemp = mean(TDRTemp, na.rm=TRUE)))
+
+# expt 2, chemistry and otus
+otus_e2 <- read_csv('derivedData/otus_chem_expt2.csv') 
+
+# coverage
+# summary(QsRutils::goods(otus_e1 %>% select(starts_with('ITSall_')))$goods)
+# summary(QsRutils::goods(otus_e2 %>% select(starts_with('ITSall_')))$goods)
+
+```
+
+```{r}
+
+## ANOVA result
+
+m1 <- lmer(propMassRem.trans ~ Time.ord * Trt * Mesh + (1|Ring/Plot), data=litter_e1)
+# qqPlot(resid(m1)); plot(m1)
+# summary(m1)
+tmp <- tidy(Anova(m1, test='F'))
+
+dust(tmp, caption="ANOVA table showing significance of fixed effects and interactions associated with CO2 treatment, mesh size and duration of decomposition for litter mass remaining at harvest. 'Ring' and 'Plot' were included as random effects. Raw data and model predictions are shown in Figure 1.") %>%
+  sprinkle_colnames('Term', 'F', 'df (num)', 'df (den)', 'P-value') %>%
+  sprinkle(cols = 1, replace = c('Harvest', 'CO2 treatment (decomp)', 'Mesh size', 
+                                 'Harvest:CO2', 'Harvest:Mesh', 'CO2:Mesh', 'Harvest:CO2:Mesh')) %>%
+  sprinkle(cols = 2, round = 1) %>% 
+  sprinkle(cols = 4, round = 0) %>% 
+  sprinkle(cols = 5, round = 3) %>% 
+  sprinkle_print_method("markdown")
+
+```
+
+\newpage
+
+```{r}
+
+## ANOVA result
+
+m2 <- lmer(propMassRem.trans ~ Time.ord * Trt * prevTrt * psyllid + (1|Ring/Plot), data=litter_e2)
+# qqPlot(resid(m1)); plot(m1)
+# summary(m1)
+tmp <- tidy(Anova(m2, test='F'))
+
+dust(tmp, caption="ANOVA table showing significance of fixed effects and interactions associated with CO2 treatment during leaf development ('leaf') and litter decomposition ('litter'), psyllid presence during leaf development and duration of decomposition for litter mass remaining at harvest in the second study. 'Ring' and 'Plot' were included as random effects. Raw data and model predictions are shown in Figure 2.") %>%
+  sprinkle_colnames('Term', 'F', 'df (num)', 'df (den)', 'P-value') %>%
+  sprinkle(cols = 1, replace = c('Harvest', 'CO2 treatment (litter)', 'CO2 treatment (leaf)', 'Psyllid', 
+                                 'Harvest:CO2[litter]', 'Harvest:CO2[leaf]', 'CO2[litter]:CO2[leaf]', 
+                                 'Harvest:Psyllid', 'CO2[litter]:Psyllid', 'CO2[leaf]:Psyllid', 
+                                 'Harvest:CO2[litter]:CO2[leaf]', 'Harvest:CO2[litter]:Psyllid', 
+                                 'Harvest:CO2[leaf]:Psyllid', 'CO2[litter]:CO2[leaf]:Psyllid', 
+                                 'Harvest:CO2[litter]:CO2[leaf]:Psyllid')) %>%
+  sprinkle(cols = 2, round = 1) %>% 
+  sprinkle(cols = 4, round = 0) %>% 
+  sprinkle(cols = 5, round = 3) %>% 
+  sprinkle_print_method("markdown")
+
+
+```
+
+\newpage
+
+```{r, fig.cap="Figure 1.", fig.dim = c(6, 8), dpi=300}
+
+Mesh.labs <- c(`2mm`='Mesh = 2 mm', `4mm`='Mesh = 4 mm')
+
+ggplot(litter_e1, aes(x=Time.ord, y=100*propMassRem, colour=Trt, fill=Trt)) + 
+  geom_boxplot(alpha=0.5) + 
+  facet_grid(cols=vars(Mesh), 
+             labeller=labeller(Mesh=Mesh.labs)) + 
+  labs(x='', y='Mass remaining (%)') + 
+  scale_colour_manual(values=c(ambient='blue', elevated='red'), 
+                      labels=c(ambient='Ambient', elevated='Ambient +\n150 ppm'), 
+                      aesthetics=c('colour', 'fill')) + 
+  guides(colour=guide_legend(title=expression(CO[2]~treatment)), 
+         fill=guide_legend(title=expression(CO[2]~treatment))) + 
+  ggtitle('(a)') + 
+  theme_bw() + 
+  theme(plot.title=element_text(hjust=0, vjust=-10, size=15), 
+        legend.position='top') -> p1
+
+## effect sizes - uncomment the second line to estimate contrasts
+m1 <- lmer(propMassRem.trans ~ Time.ord * Trt * Mesh + (1|Ring/Plot), data=litter_e1)
+# pairs(emmeans(m1, ~ Trt | Time.ord + Mesh))
+
+m1.pred <- ggemmeans(m1, ~ Trt | Time.ord + Mesh) %>% 
+  # as.data.frame %>% 
+  drop_na() %>% 
+  rename(Trt=x, Time.ord=group, Mesh=facet) %>% 
+  group_by(Mesh, Time.ord) %>% 
+  summarise(
+    lrr = log(predicted[Trt=='elevated']/predicted[Trt=='ambient']), 
+    se_lrr = sqrt((std.error[Trt=='elevated']^2/predicted[Trt=='elevated']^2)+
+                        (std.error[Trt=='ambient']^2/predicted[Trt=='ambient']^2)))
+
+pd <- position_dodge(width = 0.6)
+ggplot(m1.pred, aes(x=Time.ord, y=lrr))+
+  facet_grid(cols=vars(Mesh), 
+             labeller=labeller(Mesh=Mesh.labs)) + 
+  labs(x='Months of decomposition', 
+       y='Log response ratio +/- 95% CI\nlog(mass remaining [eCO2] / \nmass remaining [aCO2])') + 
+  geom_errorbar(aes(ymin=lrr-2*se_lrr, ymax=lrr+2*se_lrr), width=.3, position = pd) +
+  geom_point(size = 4, position = pd) +
+  geom_hline(yintercept=0) +
+  ggtitle('(b)') + 
+  coord_cartesian(ylim=c(-3, 3)) + 
+  theme_bw() + 
+  theme(plot.title=element_text(hjust=0, vjust=2, size=15)) -> p2
+
+## plot
+p1 / p2
+# ggsave('figures/fig1.tif', device='tiff', width=6, height=8)
+
+```
+
+\newpage
+
+```{r, fig.cap="Figure 2.", fig.dim = c(6, 8), dpi=300}
+
+psyllid.labs <- c(noPsyl='Unimpacted\nleaves', Psyl='Psyllid-impacted\nleaves')
+prevTrt.labs <- c(aCO2='Leaves developed under ambient CO2', eCO2='Leaves developed under elevated CO2')
+# prevTrt.labs <- c(aCO2=expression(Leaves~developed~under~ambient~CO[2]), 
+#                   eCO2=expression(Leaves~developed~under~elevated~CO[2]))
+
+ggplot(litter_e2, aes(x=Time.ord, y=100*propMassRem, colour=Trt, fill=Trt)) + 
+  geom_boxplot(alpha=0.5) + 
+  facet_grid(cols=vars(prevTrt), rows=vars(psyllid), 
+             labeller=labeller(psyllid=psyllid.labs, prevTrt=prevTrt.labs)) + 
+  labs(x='Months of decomposition', y='Mass remaining (%)') + 
+  scale_colour_manual(values=c(ambient='blue', elevated='red'), 
+                      labels=c(ambient=expression(Ambient~CO[2]), elevated='Ambient + 150 ppm'), 
+                      aesthetics=c('colour', 'fill')) + 
+  guides(colour=guide_legend(title='Treatment during\ndecomposition', 
+                             title.hjust=0, label.hjust=0), 
+         fill=guide_legend(title='Treatment during\ndecomposition', 
+                           title.hjust=0, label.hjust=0)) + 
+  ggtitle('(a)') + 
+  theme_bw() + 
+  theme(plot.title=element_text(hjust=0, vjust=-10, size=15), 
+        legend.position='top') -> p1
+
+
+## effect sizes - uncomment the second and third line to estimate contrasts
+m2 <- lmer(propMassRem.trans ~ Time.ord * Trt * prevTrt * psyllid + (1|Ring/Plot), data=litter_e2)
+# pairs(emmeans(m2, ~ Trt | Time.ord + psyllid))
+# pairs(emmeans(m2, ~ prevTrt | Time.ord + psyllid))
+
+# code for three-way interaction (current CO2)
+m2.pred <- ggemmeans(m2, ~ Trt | Time.ord + psyllid) %>% 
+  # as.data.frame %>% 
+  drop_na() %>% 
+  rename(Trt=x, Time.ord=group, psyllid=facet) %>% 
+  group_by(psyllid, Time.ord) %>% 
+  summarise(
+    lrr = log(predicted[Trt=='elevated']/predicted[Trt=='ambient']), 
+    se_lrr = sqrt((std.error[Trt=='elevated']^2/predicted[Trt=='elevated']^2)+
+                        (std.error[Trt=='ambient']^2/predicted[Trt=='ambient']^2)))
+
+ggplot(m2.pred, aes(x=Time.ord, y=lrr))+
+  facet_grid(cols=vars(psyllid), 
+             labeller=labeller(psyllid=psyllid.labs)) + 
+  labs(x='Months of decomposition', 
+       y='Log response ratio\nlog(mass remaining [eCO2] / \nmass remaining [aCO2])') + 
+  geom_errorbar(aes(ymin=lrr-2*se_lrr, ymax=lrr+2*se_lrr), width=.3) +
+  geom_point(size = 4) +
+  geom_hline(yintercept=0) +
+  ggtitle('(b) CO2[litter]') +
+  theme_bw() + 
+  theme(plot.title=element_text(hjust=0, vjust=2, size=15)) -> p2
+
+# code for three-way interaction (previous CO2)
+m2.pred <- ggemmeans(m2, ~ prevTrt | Time.ord + psyllid) %>% 
+  # as.data.frame %>% 
+  drop_na() %>% 
+  rename(Trt=x, Time.ord=group, psyllid=facet) %>% 
+  group_by(psyllid, Time.ord) %>% 
+  summarise(
+    lrr = log(predicted[Trt=='eCO2']/predicted[Trt=='aCO2']), 
+    se_lrr = sqrt((std.error[Trt=='eCO2']^2/predicted[Trt=='eCO2']^2)+
+                        (std.error[Trt=='aCO2']^2/predicted[Trt=='aCO2']^2)))
+
+ggplot(m2.pred, aes(x=Time.ord, y=lrr))+
+  facet_grid(cols=vars(psyllid), 
+             labeller=labeller(psyllid=psyllid.labs)) + 
+  labs(x='Months of decomposition', 
+       y='') + 
+  geom_errorbar(aes(ymin=lrr-2*se_lrr, ymax=lrr+2*se_lrr), width=.3) +
+  geom_point(size = 4) +
+  geom_hline(yintercept=0) +
+  ggtitle('(c) CO2[leaf]') + 
+  theme_bw() + 
+  theme(plot.title=element_text(hjust=0, vjust=2, size=15)) -> p3
+
+## plot
+p1 / (p2 + p3)
+# ggsave('figures/fig2.tif', device='tiff', width=6, height=8)
+
+```
+
+\newpage
+
+```{r, fig.cap='Figure 3.', fig.dim = c(5, 3), dpi=300}
+
+## analyse mesh/time and treatment effects (only samples prior to treatment effects on decomposition)
+
+# prepare data
+temp <- otus_e1 %>% 
+  filter(Stage == 'preEffect') %>% 
+  mutate(across(c(Trt, Mesh), as.factor))
+mat <- decostand(as.matrix(temp %>% select(starts_with('ITSall_'))), 'hellinger')
+
+# ordination
+pco <- capscale(vegdist(mat, 'bray', binary=FALSE) ~ Trt + Mesh, data=temp)
+pco.scores <- data.frame(temp %>% select(-starts_with('ITSall_')), 
+                         scores(pco, display='sites'))
+pco.eig <- c(pco$CCA$eig, pco$CA$eig); pco.eig <- pco.eig[pco.eig > 0]; pco.eig <- pco.eig / sum(pco.eig)
+
+# plot result
+ggplot(pco.scores, aes(x=CAP1, y=CAP2, colour=Trt, shape=Mesh)) + 
+  geom_point() + 
+  # stat_ellipse(aes(colour=Trt, linetype=Mesh), type='t', level=0.95) + 
+  geom_mark_hull(aes(colour=Trt, linetype=Mesh), concavity=5, expand=0, radius=0) + 
+  labs(x=paste('CAP 1 (', 100*round(pco.eig[1], 2), ' %)', sep=''), 
+       y=paste('CAP 2 (', 100*round(pco.eig[2], 2), ' %)', sep=''), 
+       colour=expression(CO[2]~(litter))) + 
+  scale_colour_manual(values=c(ambient='blue', elevated='red'), 
+                      labels=c(ambient='Ambient', elevated='Ambient +\n150 ppm')) + 
+  scale_shape_manual(values=c(`2mm`=16, `4mm`=17), 
+                     labels=c(`2mm`='Mesh = 2 mm (6 months)', `4mm`='Mesh = 4 mm (3 months)'))  + 
+  scale_linetype_manual(values=c(`2mm`='solid', `4mm`='dotted'), 
+                     labels=c(`2mm`='Mesh = 2 mm (6 months)', `4mm`='Mesh = 4 mm (3 months)')) + 
+  theme_bw()
+# ggsave('figures/fig3.tif', device='tiff', width=6, height=4)
+
+```
+
+\newpage
+
+```{r, fig.cap='Figure 4.', fig.dim = c(5, 6), dpi=300}
+
+## analyse mesh/time and treatment effects (only samples prior to treatment effects on decomposition)
+
+# prepare data
+temp <- otus_e2 %>% 
+  filter(Stage == 'preEffect') %>% 
+  mutate(across(c(Trt, prevTrt, psyllid), as.factor))
+mat <- decostand(as.matrix(temp %>% select(starts_with('ITSall_'))), 'hellinger')
+
+# ordination
+pco <- capscale(vegdist(mat, 'bray', binary=FALSE) ~ Trt + prevTrt + psyllid, data=temp)
+pco.scores <- data.frame(temp %>% select(-starts_with('ITSall_')), 
+                         scores(pco, display='sites', choices=1:3))
+pco.eig <- c(pco$CCA$eig, pco$CA$eig); pco.eig <- pco.eig[pco.eig > 0]; pco.eig <- pco.eig / sum(pco.eig)
+
+# plot result
+ggplot(pco.scores, aes(x=CAP1, y=CAP2, colour=prevTrt, shape=psyllid, linetype=psyllid)) + 
+  geom_point() + 
+  geom_mark_hull(aes(colour=prevTrt), concavity=5, expand=0, radius=0) + 
+  labs(x=paste('', sep=''), 
+       y=paste('CAP 2 (', 100*round(pco.eig[2], 2), ' %)', sep=''), 
+       shape='Leaf origin', 
+       linetype='Leaf origin', 
+       colour=expression(CO[2]~(leaf))) + 
+  scale_colour_manual(values=c(aCO2='blue', eCO2='red'), 
+                      labels=c(aCO2='Ambient', eCO2='Ambient +\n150 ppm')) + 
+  scale_shape_manual(values=c(`Psyl`=16, `noPsyl`=1),
+                     labels=c(`Psyl`='Psyllid-impacted', `noPsyl`='Unimpacted'))  +
+  scale_linetype_manual(values=c(`Psyl`='solid', `noPsyl`='dotted'),
+                     labels=c(`Psyl`='Psyllid-impacted', `noPsyl`='Unimpacted')) +
+  ggtitle('(a)') + 
+  theme_bw() + 
+  theme(plot.title=element_text(hjust=0, vjust=2, size=15), 
+        legend.text.align=0, 
+        legend.justification='left') -> p1
+
+
+ggplot(pco.scores, aes(x=CAP1, y=CAP3, colour=Trt, shape=psyllid, linetype=psyllid)) + 
+  geom_point() + 
+  geom_mark_hull(aes(colour=Trt), concavity=5, expand=0, radius=0) + 
+  labs(x=paste('CAP 1 (', 100*round(pco.eig[1], 2), ' %)', sep=''), 
+       y=paste('CAP 3 (', 100*round(pco.eig[3], 2), ' %)', sep=''), 
+       shape='Leaf origin', 
+       linetype='Leaf origin', 
+       colour=expression(CO[2]~(litter))) + 
+  scale_colour_manual(values=c(aCO2='blue', eCO2='red'), 
+                      labels=c(aCO2='Ambient', eCO2='Ambient +\n150 ppm')) + 
+  scale_shape_manual(values=c(`Psyl`=16, `noPsyl`=1),
+                     labels=c(`Psyl`='Psyllid-impacted', `noPsyl`='Unimpacted'), 
+                     guide='none')  +
+  scale_linetype_manual(values=c(`Psyl`='solid', `noPsyl`='dotted'),
+                     labels=c(`Psyl`='Psyllid-impacted', `noPsyl`='Unimpacted'), 
+                     guide='none') +
+  ggtitle('(b)') + 
+  theme_bw() + 
+  theme(plot.title=element_text(hjust=0, vjust=2, size=15), 
+        legend.justification='left') -> p2
+
+## plot
+p1 / p2
+# ggsave('figures/fig4.tif', device='tiff', width=6, height=8)
+
+```
+
