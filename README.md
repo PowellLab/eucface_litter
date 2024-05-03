@@ -1,5 +1,3 @@
-## README
-
 Data and code for analyses presented in "Elevated CO~2~ enhances decomposition and modifies litter-associated fungal assemblages in a natural *Eucalyptus* woodland".
 
 `eucface_litter_ms.Rmd` contains analyses for figures and tables that appear in the main manuscript.
